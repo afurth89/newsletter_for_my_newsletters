@@ -1,2 +1,4 @@
 .env
-newsletter-for-my-newsletters-ed1e11e37005.json
+artifacts/
+client_secret.json
+token.pickle

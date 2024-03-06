@@ -1,56 +1,99 @@
+import base64
+import bs4
 import email
-import imaplib
-import logging
-import os
-from dotenv import load_dotenv
-from google.oauth2 import service_account
+import os.path
+import pickle
+import re
 from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 
-# Configuration and Setup
-SERVICE_ACCOUNT_FILE = 'newsletter-for-my-newsletters-ed1e11e37005.json' 
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/cloud-platform'] 
-SENDER_EMAIL = 'andrewfurthnewsletters@gmail.com'  # Your dedicated Gmail address
+# Authentication scopes
+SCOPES = ['https://mail.google.com/'] 
 
-logging.basicConfig(level=logging.DEBUG)  # Enable detailed logging
+def get_gmail_service():
+    creds = None
+    # The file token.pickle stores the user's access and refresh tokens.
+    # It's created automatically when the authorization flow completes.
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
 
-load_dotenv()
+    # If there are no (valid) credentials, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'client_secret.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+    print('Gmail service created')
+    return build('gmail', 'v1', credentials=creds)
 
-# TODO: Revisit service account authentication for Gmail. Current credentials 
-#       are not generating a valid access token. Investigate library versions, 
-#       service account permissions, and potential API changes.
+def extract_text_from_part(part):
+    if part.get_content_type() == 'text/plain':
+        return part.get_payload(decode=True).decode() 
+    elif part.get_content_type() == 'text/html':
+        html = part.get_payload(decode=True).decode()
+        soup = bs4.BeautifulSoup(html, 'html.parser')
+        return soup.get_text()  
+    return ''  # If the content type is not text
 
-# Connect to Gmail IMAP server
-imap_server = imaplib.IMAP4_SSL('imap.gmail.com')
+def clean_excessive_whitespace(text):
+    return re.sub(r'\s{2,}', ' ', text)  # Replace 2 or more whitespace characters with a single space 
 
-# Get credentials from environment variables
-USER_EMAIL = os.getenv('USER_EMAIL')
-USER_PASSWORD = os.getenv('USER_PASSWORD')
+def remove_html_tags(text):
+    clean = re.sub('<[^<]+?>', '', text)  # Removes '<...>' HTML tag patterns
+    return clean
 
-# Use environment variables for login:
-imap_server.login(USER_EMAIL, USER_PASSWORD)
+sanitization_pipeline = [
+    clean_excessive_whitespace,
+    remove_html_tags,
+    # You can add more functions here
+]
 
-imap_server.select('INBOX')  # Select the inbox
+def fetch_and_parse_emails():
+    service = get_gmail_service()
 
-# Fetch recent emails (max 10)
-status, email_ids = imap_server.search(None, '(SINCE "01-Jan-2023")')  # Adjust date as needed
-id_list = email_ids[0].split()
-num_emails_to_fetch = min(10, len(id_list))
+    # Fetch recent emails from Inbox
+    results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=5).execute()
+    messages = results.get('messages', [])
 
-# Process emails
-for i in range(num_emails_to_fetch):
-    status, email_data = imap_server.fetch(id_list[i], '(RFC822)') 
-    email_message = email.message_from_bytes(email_data[0][1])
-
-    subject = email_message['Subject']
-    body = email_message.get_payload(decode=True)  # Get the decoded body
-    if body is not None:
-        body_text = body.decode('utf-8')[:100]  # Truncate to the first 100 characters
+    if not messages:
+        print('No messages found.')
     else:
-        body_text = '[No text content]'
+        newsletter_content = []  # Storage for all text content
+        for message in messages:
+            msg = service.users().messages().get(userId='me', id=message['id']).execute()
+        
+            # Extract subject
+            headers = msg['payload']['headers']
+            subject = [i['value'] for i in headers if i['name'] == 'Subject'][0]
+            email_body = ""
+            if 'parts' in msg['payload']:
+                for part in msg['payload']['parts']:
+                    if part['mimeType'] == "text/plain":
+                        data = part['body']['data'] 
+                        decoded_data = base64.urlsafe_b64decode(data.encode('ASCII')).decode()
+                        cleaned_data = decoded_data  # Start with decoded data
 
-    print(f"Subject: {subject}")
-    print(f"Body (first 100): {body_text}")
-    print("-" * 20)
+                        for func in sanitization_pipeline:
+                            cleaned_data = func(cleaned_data)
+                        email_body += cleaned_data
+            
+            email_data = {
+                'subject': subject,
+                # 'author': extract_author(msg),  # Assuming you'll write an author extraction function
+                'body': email_body
+            }
 
-imap_server.close()
-imap_server.logout()
+            newsletter_content.append(email_data)
+
+        print(newsletter_content)
+
+# Update your main script execution
+if __name__ == '__main__': 
+    fetch_and_parse_emails()
