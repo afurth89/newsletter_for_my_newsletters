@@ -1,0 +1,38 @@
+name: Send daily email summarizing my favorite newsletters
+
+on:
+  schedule:
+    # Runs at 08:00 UTC every day
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+
+jobs:
+  send_email:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11.0'
+
+    - name: Install dependencies
+      run: |
+        pip install beautifulsoup4 python-dotenv google-api-python-client google-auth-oauthlib google-auth openai
+
+    - name: Create client_secret.json file
+      run: |
+        echo "${{ secrets.CLIENT_SECRET_JSON_BASE64 }}" | base64 --decode > client_secret.json
+
+    - name: Create token.pickle file
+      run: |
+        echo "${{ secrets.TOKEN_PICKLE_BASE64 }}" | base64 --decode > token.pickle
+
+    - name: Run the email script
+      run: python src/email_fetcher.py
