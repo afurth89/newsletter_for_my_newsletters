@@ -30,6 +30,8 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
 
 EMAILS_TO_FETCH = 5  # Number of emails to fetch
+
+MAX_TOKENS = 1000  # Maximum number of tokens to use for summarization of a single email
 API_URL = "https://api.openai.com/v1/completions"
 OPENAI_MODEL = "gpt-3.5-turbo"
 
@@ -127,9 +129,10 @@ def summarize_text(text):
     try:
         completion = client.chat.completions.create(
             model=OPENAI_MODEL,
+            max_tokens=MAX_TOKENS,
             messages=[
-                {"role": "system", "content": "You are a highly skilled assistant, adept at summarizing detailed text into concise, informative summaries."},
-                {"role": "user", "content": f"Summarize this text for me: \"{text}\""}
+                {"role": "system", "content": "You are a highly skilled assistant, adept at summarizing detailed text into concise, informative summaries. Your task involves accurately capturing the content of the text and excelling at discerning and conveying the author's point of view. It's crucial to identify the nuances of their opinions. You are to interpret and summarize not only the factual content but also analyze the underlying perspectives and arguments, making the author's stance on the topics discussed crystal clear in your summary."},
+                {"role": "user", "content": f"Generate a clear and structured summary that includes an initial one-sentence overview of the text. Follow this with bullet points summarizing each paragraph of the original content. Focus on accurately conveying both the content and the author's opinions. Highlight the author's stance on the discussed topics. Your summary should not only inform but also offer insight into what the author truly thinks about these issues. Format it into an HTML snippet enclosed in a <div>: \"{text}\""}
             ]
         )
         return completion.choices[0].message.content
@@ -200,8 +203,8 @@ def generate_summary_html(summaries):
     summary_blocks += f"""
     <div class="summary-container">
       <h2>{summary['subject']}</h2>
-      <h3>By {summary['sender']}</h3>By 
-      <p class="summary">{summary['summary']}</p>
+      <h3>By {summary['sender']}</h3> 
+      {summary['summary']}
     </div>
     """
 
