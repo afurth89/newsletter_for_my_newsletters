@@ -25,11 +25,14 @@ os.makedirs(subfolder, exist_ok=True)
 # Authentication scopes
 SCOPES = ['https://mail.google.com/'] 
 
+ENV = os.getenv('ENV')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
+
+EMAILS_TO_FETCH = 5  # Number of emails to fetch
 API_URL = "https://api.openai.com/v1/completions"
 OPENAI_MODEL = "gpt-3.5-turbo"
 
-EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
 
 def get_gmail_service():
     creds = None
@@ -79,7 +82,7 @@ def fetch_and_parse_emails(service):
     
 
     # Fetch recent emails from Inbox
-    results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=5).execute()
+    results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=EMAILS_TO_FETCH).execute()
     messages = results.get('messages', [])
 
     if not messages:
@@ -88,11 +91,12 @@ def fetch_and_parse_emails(service):
         newsletter_content = []  # Storage for all text content
         for message in messages:
             msg = service.users().messages().get(userId='me', id=message['id']).execute()
-        
             # Extract subject
             headers = msg['payload']['headers']
             subject = [i['value'] for i in headers if i['name'] == 'Subject'][0]
+            sender = [i['value'] for i in headers if i['name'] == 'From'][0]
             email_body = ""
+            
             if 'parts' in msg['payload']:
                 for part in msg['payload']['parts']:
                     if part['mimeType'] == "text/plain":
@@ -105,8 +109,8 @@ def fetch_and_parse_emails(service):
                         email_body += cleaned_data
             
             email_data = {
+                'sender': sender,
                 'subject': subject,
-                # 'author': extract_author(msg),  # Assuming you'll write an author extraction function
                 'body': email_body
             }
 
@@ -136,11 +140,12 @@ def summarize_text(text):
 def summarize_email_content(newsletter_content):
     summaries = []
     for email in newsletter_content:
+        sender = email.get("sender")
         subject = email.get("subject")
         body = email.get("body")
         summary = summarize_text(body)
-        print(f"Subject: {subject}\nSummary: {summary}\n")
-        summaries.append({"subject": subject, "summary": summary})  # Append the subject and summary as a dict
+        print(f"\nSender: {sender}\nSubject: {subject}\nSummary: {summary}\n")
+        summaries.append({"sender": sender, "subject": subject, "summary": summary})  # Append the subject and summary as a dict
     
     with open(f'{subfolder}/{timestamp.strftime("%H%M")}_output.json', 'w') as file:
         json.dump(summaries, file)
@@ -195,6 +200,7 @@ def generate_summary_html(summaries):
     summary_blocks += f"""
     <div class="summary-container">
       <h2>{summary['subject']}</h2>
+      <h3>By {summary['sender']}</h3>By 
       <p class="summary">{summary['summary']}</p>
     </div>
     """
@@ -208,4 +214,11 @@ if __name__ == '__main__':
     email_data = fetch_and_parse_emails(service)
     summaries = summarize_email_content(email_data)
     html_content = generate_summary_html(summaries)
-    send_email(service, to=EMAIL_RECIPIENT, subject=f'Newsletter Summary: {timestamp.strftime("%m/%d")}',  message_content=html_content) 
+    if (ENV == 'prod'):
+        print(f'\nSending email to {EMAIL_RECIPIENT}\n')
+        send_email(service, to=EMAIL_RECIPIENT, subject=f'Newsletter Summary: {timestamp.strftime("%m/%d")}',  message_content=html_content) 
+    else:
+        file_path = f'{subfolder}/{timestamp.strftime("%H%M")}_email.html'
+        with open(file_path, 'w') as file:
+            print(f'\nSkipping email sending in non-prod environment. Storing HTML content to {file_path}')
+            file.write(html_content)
