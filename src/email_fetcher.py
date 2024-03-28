@@ -14,6 +14,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from openai import OpenAI
 
+from src.my_model import summarize_text_with_my_model
+
+
 load_dotenv()
 client = OpenAI() # defaults to getting the key using os.environ.get("OPENAI_API_KEY")
 
@@ -124,7 +127,7 @@ def fetch_and_parse_emails(service):
 
         return newsletter_content
 
-def summarize_text(text):
+def summarize_text_with_open_ai(text):
     """Uses OpenAI's API to summarize the given text using a conversational approach."""
     try:
         completion = client.chat.completions.create(
@@ -146,9 +149,10 @@ def summarize_email_content(newsletter_content):
         sender = email.get("sender")
         subject = email.get("subject")
         body = email.get("body")
-        summary = summarize_text(body)
-        print(f"\nSender: {sender}\nSubject: {subject}\nSummary: {summary}\n")
-        summaries.append({"sender": sender, "subject": subject, "summary": summary})  # Append the subject and summary as a dict
+        open_ai_summary = summarize_text_with_open_ai(body)
+        my_model_summary = summarize_text_with_my_model(body)
+        print(f"\nSender: {sender}\nSubject: {subject}\nOpen AI Summary: {open_ai_summary}\n")
+        summaries.append({"sender": sender, "subject": subject, "open_ai_summary": open_ai_summary, "my_model_summary": my_model_summary})  # Append the subject and summary as a dict
     
     with open(f'{subfolder}/{timestamp.strftime("%H%M")}_output.json', 'w') as file:
         json.dump(summaries, file)
@@ -204,7 +208,10 @@ def generate_summary_html(summaries):
     <div class="summary-container">
       <h2>{summary['subject']}</h2>
       <h3>By {summary['sender']}</h3> 
-      {summary['summary']}
+      <h3>Open AI Summary</h3>
+      {summary['open_ai_summary']}
+      <h3>My Model Summary</h3>
+      {summary['my_model_summary']}
     </div>
     """
 

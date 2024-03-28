@@ -25,7 +25,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install beautifulsoup4 python-dotenv google-api-python-client google-auth-oauthlib google-auth openai
+        pip install -r requirements.txt
 
     - name: Create client_secret.json file
       run: |
@@ -36,4 +36,4 @@ jobs:
         echo "${{ secrets.TOKEN_PICKLE_BASE64 }}" | base64 --decode > token.pickle
 
     - name: Run the email script
-      run: python src/email_fetcher.py
+      run: python -m src.email_fetcher

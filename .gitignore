@@ -1,4 +1,5 @@
 .env
+*.pyc
 artifacts/
 client_secret.json
 token.pickle
