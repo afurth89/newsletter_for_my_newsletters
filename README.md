@@ -26,20 +26,8 @@ python -m src.email_fetcher
 ```
 
 ## Troubleshooting
-Currently have an issue where the Gmail auth expires after about 7 days. Haven't prioritized working around it.
+Currently have an issue where the Gmail auth expires after about 7 days. Haven't prioritized working around it. Wrote a quick script to easily update it.
 
-Workaround is:
-1. Delete `token.pickle`
-2. Run the script: 
-
-    ```
-    python -m src.email_fetcher
-    ```
-
-3. Encode `token.pickle`
-
-    ```
-    base64 -i token.pickle
-    ```
-
-4. Add the encoded string to repo's [GitHub Actions secrets](https://github.com/afurth89/newsletter_for_my_newsletters/settings/secrets/actions) --> `TOKEN_PICKLE_BASE64`
+1. `python -m src.reauthorize_google_oauth`
+  - Accept OAuth
+2. Add the Base64-encoded string (copied to clipboard) to repo's [GitHub Actions secrets](https://github.com/afurth89/newsletter_for_my_newsletters/settings/secrets/actions) --> `TOKEN_PICKLE_BASE64`
