@@ -1,24 +1,18 @@
-# Newsletter Automation for New Letters
+# Newsletter for my newsletter
 
 This script fetches emails from a Gmail inbox, summarizes their content using OpenAI's API, and sends a summary email.
 
-## Steps:
+## Components:
+1. **Fetch and parse emails**: Uses Google OAuth to access and fetch newsletters from a designated Gmail account, and then sanitizes and parses the content into structured data ready to be summarized
+2. **Summarize content with LLMs**: Each newsletter's text is fed into both [OpenAI's API](https://openai.com/index/openai-api), and an open-source `bart-large-cnn` trained with a dataset from the [HuggingFace](https://huggingface.co/)
+3. **Generate and Send Summary Email**: A new email is created, containing the compiled summaries or analyses, and sent to the user's inbox. This email may include links to the full newsletters for further reading.
 
-1. Import necessary libraries and modules.
-2. Load environment variables from a `.env` file.
-3. Set up authentication scopes and API keys.
-4. Define constants for email fetching and summarization.
-5. Create a function to get the Gmail service.
-6. Create a function to extract text from email parts.
-7. Create functions to clean and sanitize the extracted text.
-8. Create a function to fetch and parse emails from the Gmail inbox.
-9. Create a function to summarize text using OpenAI's API.
-10. Create a function to summarize the content of fetched emails.
-11. Create a function to send an email using the Gmail service.
-12. Create a function to create an email MIME message object.
-13. Create a function to generate an HTML email template with summaries.
-14. Update the main script execution to fetch emails, summarize their content, generate an HTML summary, and send the summary email.
-
+## Writing
+I wrote about the spirit behind the project, and the process of building it. View the entire series:
+- [The inspiration to build something new (and write about it)](https://andrewfurth.substack.com/p/a-newsletter-for-my-newsletters-part)
+- [Charting a course for the app with my AI co-pilot](https://andrewfurth.substack.com/p/a-newsletter-for-my-newsletters-part-3b0?r=mxmyr&utm_campaign=post&utm_medium=web&triedRedirect=true)
+- Get something working (coming soon)
+- Can I "train" my own model to summarize? (coming soon)
 
 ## To Run in `venv`
 ```
