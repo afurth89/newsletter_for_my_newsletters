@@ -1,4 +1,4 @@
-# Newsletter for my newsletter
+# Newsletter for my newsletters
 
 This script fetches emails from a Gmail inbox, summarizes their content using OpenAI's API, and sends a summary email.
 
